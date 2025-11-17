@@ -1,11 +1,42 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>mapa_ELECTORAL</title>
-</head>
-<body>
-  <h1>mapa_ELECTORAL</h1>
-  <p>La meva primera pàgina publicada a GitHub Pages.</p>
-</body>
-</html>
+<script>
+// 1) Inicialitzar mapa (punt aproximat sobre Sant Cugat; després farem fitBounds)
+var map = L.map('map').setView([41.47, 2.08], 13);
+
+// 2) Afegir base map
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
+
+// 3) Carregar el teu GeoJSON (canvia el nom si cal)
+fetch("result.geojson")
+  .then(r => r.json())
+  .then(data => {
+
+    var seccionsLayer = L.geoJSON(data, {
+      style: function (feature) {
+        return {
+          color: "#555",
+          weight: 1,
+          fillColor: "#cccccc",
+          fillOpacity: 0.5
+        };
+      },
+      onEachFeature: function (feature, layer) {
+        const props = feature.properties || {};
+        const districte = props.districte ?? "";
+        const seccio    = props.seccio ?? "";
+        const id        = props.id ?? props.codiseccio ?? "";
+
+        const text = `Secció ${id} (D ${districte}, S ${seccio})`;
+        layer.bindTooltip(text, { sticky: true });
+      }
+    }).addTo(map);
+
+    // Ajustar el zoom als límits del GeoJSON
+    map.fitBounds(seccionsLayer.getBounds());
+  })
+  .catch(err => {
+    console.error("Error carregant el GeoJSON:", err);
+  });
+</script>
+
