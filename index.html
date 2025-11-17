@@ -1,42 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MAPA ELECTORAL 2023</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet CSS (sense integritat per evitar problemes) -->
+  <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <!-- Leaflet JS -->
+  <script 
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+<div id="map"></div>
+
 <script>
-// 1) Inicialitzar mapa (punt aproximat sobre Sant Cugat; després farem fitBounds)
+// 1) Inicialitzar el mapa (centrat aproximadament a Sant Cugat)
 var map = L.map('map').setView([41.47, 2.08], 13);
 
-// 2) Afegir base map
+// 2) Afegir capa base (OpenStreetMap)
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// 3) Carregar el teu GeoJSON (canvia el nom si cal)
-fetch("result.geojson")
-  .then(r => r.json())
-  .then(data => {
+// 3) Carregar el teu GeoJSON (ha d'estar al mateix nivell i dir-se result.geojson)
+fetch('result.geojson')
+  .then(function(r) {
+    if (!r.ok) throw new Error('No puc llegir result.geojson');
+    return r.json();
+  })
+  .then(function(data) {
+    console.log('GeoJSON carregat', data);
 
-    var seccionsLayer = L.geoJSON(data, {
+    var layer = L.geoJSON(data, {
       style: function (feature) {
         return {
-          color: "#555",
+          color: '#555',
           weight: 1,
-          fillColor: "#cccccc",
+          fillColor: '#cccccc',
           fillOpacity: 0.5
         };
       },
       onEachFeature: function (feature, layer) {
-        const props = feature.properties || {};
-        const districte = props.districte ?? "";
-        const seccio    = props.seccio ?? "";
-        const id        = props.id ?? props.codiseccio ?? "";
+        var props = feature.properties || {};
+        var id   = props.id || props.codiseccio || '';
+        var dist = props.districte || '';
+        var sec  = props.seccio || '';
+        var nom  = props.nomdistricte || '';
 
-        const text = `Secció ${id} (D ${districte}, S ${seccio})`;
-        layer.bindTooltip(text, { sticky: true });
+        var text = '<strong>Secció ' + id + '</strong><br>' +
+                   'Districte: ' + dist + ' (' + nom + ')<br>' +
+                   'Secció: ' + sec;
+        layer.bindPopup(text);
       }
     }).addTo(map);
 
-    // Ajustar el zoom als límits del GeoJSON
-    map.fitBounds(seccionsLayer.getBounds());
+    // Ajustar zoom als límits del GeoJSON
+    map.fitBounds(layer.getBounds());
   })
-  .catch(err => {
-    console.error("Error carregant el GeoJSON:", err);
+  .catch(function(err) {
+    console.error(err);
+    alert('Error carregant el GeoJSON: ' + err.message);
   });
 </script>
 
+</body>
+</html>
