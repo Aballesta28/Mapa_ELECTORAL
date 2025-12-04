@@ -104,7 +104,7 @@ fetch('result.geojson')
       },
       onEachFeature: function(feature, layer) {
         var props = feature.properties || {};
-        var id = props.codiseccio;
+        var id = String(props.codiseccio).trim();
 
         // fusionar datos de la hoja si existen
         if (datos[id]) {
