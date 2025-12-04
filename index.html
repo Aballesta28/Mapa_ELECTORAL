@@ -5,16 +5,17 @@
   <title>MAPA ELECTORAL 2023</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Leaflet CSS (sense integritat per evitar problemes) -->
+  <!-- Leaflet CSS -->
   <link 
     rel="stylesheet" 
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
 
   <!-- Leaflet JS -->
-  <script 
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- PapaParse para CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
     html, body {
@@ -32,26 +33,63 @@
 <div id="map"></div>
 
 <script>
-// 1) Inicialitzar el mapa (centrat aproximadament a Sant Cugat)
+// -----------------------------------
+// 1) Inicializar mapa
+// -----------------------------------
 var map = L.map('map').setView([41.47, 2.08], 13);
 
-// 2) Afegir capa base (OpenStreetMap)
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// 3) Carregar el teu GeoJSON (ha d'estar al mateix nivell i dir-se result.geojson)
+
+// -----------------------------------
+// 2) URL del Google Sheets → CSV
+// (SUSTITUIR ID_DE_TU_HOJA)
+// -----------------------------------
+var urlCSV =
+  "https://docs.google.com/spreadsheets/d/2001682057/export?format=csv";
+
+
+// -----------------------------------
+// 3) Leer Google Sheets y devolver diccionario {codiseccio → fila}
+// -----------------------------------
+function cargarDatosGoogleSheets() {
+  return fetch(urlCSV)
+    .then(r => r.text())
+    .then(csv => {
+      var parsed = Papa.parse(csv, { header: true }).data;
+
+      var dic = {};
+      parsed.forEach(row => {
+        if (row.codiseccio) {
+          dic[row.codiseccio] = row;
+        }
+      });
+
+      console.log("Datos Google Sheets:", dic);
+      return dic;
+    });
+}
+
+
+// -----------------------------------
+// 4) Cargar GeoJSON y fusionar datos
+// -----------------------------------
 fetch('result.geojson')
-  .then(function(r) {
-    if (!r.ok) throw new Error('No puc llegir result.geojson');
+  .then(r => {
+    if (!r.ok) throw new Error("No puc llegir result.geojson");
     return r.json();
   })
-  .then(function(data) {
-    console.log('GeoJSON carregat', data);
+  .then(async function(data) {
 
+    // 4.1 cargar datos del Sheet
+    var datos = await cargarDatosGoogleSheets();
+
+    // 4.2 crear capa GeoJSON
     var layer = L.geoJSON(data, {
-      style: function (feature) {
+      style: function(feature) {
         return {
           color: '#555',
           weight: 1,
@@ -59,27 +97,40 @@ fetch('result.geojson')
           fillOpacity: 0.5
         };
       },
-      onEachFeature: function (feature, layer) {
+      onEachFeature: function(feature, layer) {
         var props = feature.properties || {};
-        var id   = props.id || props.codiseccio || '';
-        var dist = props.districte || '';
-        var sec  = props.seccio || '';
-        var nom  = props.nomdistricte || '';
+        var id = props.codiseccio;
 
-        var text = '<strong>Secció ' + id + '</strong><br>' +
-                   'Districte: ' + dist + ' (' + nom + ')<br>' +
-                   'Secció: ' + sec;
-        layer.bindPopup(text);
+        // fusionar datos de la hoja si existen
+        if (datos[id]) {
+          Object.assign(props, datos[id]); 
+        }
+
+        // Crear popup
+        var html = `<strong>Secció ${id}</strong><br>
+                    Districte: ${props.districte || ""} (${props.nomdistricte || ""})<br>
+                    Secció: ${props.seccio || ""}<br><br>`;
+
+        if (datos[id]) {
+          html += "<strong>Dades Google Sheets:</strong><br>";
+          for (let key in datos[id]) {
+            html += `${key}: ${datos[id][key]}<br>`;
+          }
+        } else {
+          html += "<em>Sense dades al Google Sheets</em>";
+        }
+
+        layer.bindPopup(html);
       }
     }).addTo(map);
 
-    // Ajustar zoom als límits del GeoJSON
     map.fitBounds(layer.getBounds());
   })
-  .catch(function(err) {
+  .catch(err => {
     console.error(err);
-    alert('Error carregant el GeoJSON: ' + err.message);
+    alert("Error carregant el GeoJSON: " + err.message);
   });
+
 </script>
 
 </body>
