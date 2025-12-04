@@ -63,10 +63,15 @@ function cargarDatosGoogleSheets() {
 
       var dic = {};
       parsed.forEach(row => {
-        if (row.Codiseccio) {
-          dic[row.Codiseccio] = row;
-        }
-      });
+  // Buscar una columna cuyo nombre, en minúsculas, sea exactamente "codiseccio"
+  let key = Object.keys(row).find(k => k.toLowerCase().trim() === "codiseccio");
+
+  if (key && row[key]) {
+    let codigo = String(row[key]).trim();
+    dic[codigo] = row;
+  }
+});
+
 
       console.log("Datos Google Sheets:", dic);
       return dic;
