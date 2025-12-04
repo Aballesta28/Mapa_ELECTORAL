@@ -107,7 +107,7 @@ fetch('result.geojson')
         var id = String(props.codiseccio).trim();
 
         // fusionar datos de la hoja si existen
-        if (datos[id]) {
+        if (datos[id] !== undefined) {
           Object.assign(props, datos[id]); 
         }
 
